@@ -1,0 +1,5 @@
+test/
+docs/
+scripts/
+.github/
+*.log

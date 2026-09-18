@@ -1,0 +1,19 @@
+# dsh-agent-team —— DSH bundle patch（dsh.bundle manifest 指向的加载配置）
+#
+# 安装：  dsh plugin --profile web add dsh-agent-team
+# 本地：  dsh plugin --profile web add link:/绝对路径/dsh-agent-team
+# 之后：  dsh web   → 右下角「Agent Team」按钮，或 http://127.0.0.1:3080/agent-team/
+#
+# 只有一行插件，硬依赖仅 sessions；派工工具（tools+subagents）、队长提示词（systemPrompt）、看板（webServer）
+# 都是“服务到了才挂”。所以 headless / ACP 这类没有 Web 服务的组合也能装、能派工，只是没看板——不会让启动失败。
+- insert:
+    - id: dsh-agent-team
+      name: dsh-agent-team
+      config:
+        subagentProvider: spawn      # 派工走哪个子代理 provider（in-process 的 spawn 最省；也可换成 fork）
+        toolName: dispatch_member    # 队长看到的工具名
+        promptSection: true          # 往队长的系统提示词里加成员表
+        board: true                  # 挂看板（需要 Web 服务）
+        basePath: /agent-team        # 看板地址 http://127.0.0.1:3080/agent-team/
+        launcher: true               # Web UI 右下角注入「Agent Team」按钮
+        checkUpdates: true           # 12 小时查一次 npm 上有没有新版本（只提示，不自动装）
