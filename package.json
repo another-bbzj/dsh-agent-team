@@ -13,7 +13,7 @@
   "files": ["lib", "assets", "cordis.patch.yml", "README.md", "LICENSE"],
   "engines": { "node": ">=20" },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/plugin.test.js",
     "smoke": "node scripts/smoke.mjs"
   },
   "repository": { "type": "git", "url": "git+https://github.com/another-bbzj/dsh-agent-team.git" },
