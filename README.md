@@ -24,7 +24,7 @@
 | **DSH 设置里的卡片** | 设置 → 插件 → 插件配置 → **Agent Team · 部门与成员**：在 DSH 自己的设置页里增删改部门、成员（岗位提示词 / 路由 / 模型 / 思考强度 / 形象）、导入桌宠；端口、派工 provider 等开关也在同一命名空间 `agent-team` 下 |
 | **token / 成本** | 直接用 Harness 每步 `assistant/message` 里的真实 `usage`（输入 / 输出 / 缓存命中，口径与 DeepSeek 后台一致）；成本按 `provider/model` 最长前缀匹配内置价格表，认不出的模型显示「未定价」而不是瞎算 |
 | **形象** | 自带 13 只（MIT）；桌宠雪碧图（Codex / petdex 格式）拖进来就能用；正在工作的成员也能当场换形象；主体偏小的形象自动按动作放大 |
-| **不会“一装就崩”** | 纯 ESM JavaScript、零运行时依赖、不需要构建；只硬依赖 `sessions` 服务，其余（tools / subagents / systemPrompt / webServer）都是"服务到了才挂"——headless、ACP 这类没有 Web 的组合照样能装、能派工，只是没看板 |
+| **不会“一装就崩”** | 纯 ESM JavaScript、不需要构建（唯一依赖是 DSH 自己的 schema 库 `@deepseek-ai/schemastery`，缺了也只是没设置卡片）；只硬依赖 `sessions` 服务，其余（tools / subagents / systemPrompt / webServer）都是"服务到了才挂"——headless、ACP 这类没有 Web 的组合照样能装、能派工，只是没看板 |
 
 ## 三分钟装好
 
@@ -48,10 +48,11 @@ dsh plugin --profile web add link:/绝对路径/dsh-agent-team
 dsh web
 ```
 
-终端会多两行：
+终端会多三行：
 
 ```
-[dsh-agent-team] v0.1.0 已加载：工具 dispatch_member，8 位成员
+[dsh-agent-team] v0.2.0 已加载：工具 dispatch_member，8 位成员
+[dsh-agent-team] 独立看板 http://127.0.0.1:7790/agent-team/
 [dsh-agent-team] 看板 http://127.0.0.1:3080/agent-team/
 ```
 
