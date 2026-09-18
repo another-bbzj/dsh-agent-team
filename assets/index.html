@@ -324,6 +324,12 @@
   @keyframes fly { from { offset-distance: 0%; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
   @keyframes trail { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
   @media (prefers-reduced-motion: reduce) { .ring, .zz, .live, .spin, .wire.active, .bar > i, .mail, .rel.hot { animation: none !important; } }
+
+  /* ?view=manage：只显示成员 / 部门 / 形象管理（嵌在 DSH 设置页的插件配置里） */
+  body.manage header, body.manage .mission, body.manage .stage, body.manage .statsrow, body.manage .lower > .panel:not(#roster-panel), body.manage .drawer { display: none !important; }
+  body.manage main { padding: 8px; } body.manage .lower { grid-template-columns: 1fr; margin-top: 0; }
+  body.manage #roster-panel { max-height: none; }
+  body.manage .manage-tip { font-size: 12.5px; color: var(--text-2); margin: 0 0 10px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -378,7 +384,7 @@
       <h2>ACTIVITY · 动作流 <span class="count" id="feed-count"></span></h2>
       <div class="feed" id="feed"></div>
     </section>
-    <section class="panel" style="grid-column: 1 / -1; min-height: 0">
+    <section class="panel" id="roster-panel" style="grid-column: 1 / -1; min-height: 0">
       <h2>ROSTER · 常驻部门成员（~/.dsh/agent-team/members） <span class="count" id="roster-count"></span><button class="mini-btn" id="agent-new">＋ 新建成员</button><button class="mini-btn" id="dept-manage">⚙ 部门管理</button></h2>
       <div class="roster" id="roster"></div>
     </section>
@@ -1115,7 +1121,9 @@ async function tick() {
 tick(); setInterval(tick, 1500);
 /* 文档截图辅助：?shot=stats|lower|member|dept 只显示对应区域 / 打开对应弹窗（对普通使用无影响） */
 (function shotMode() {
-  const shot = new URLSearchParams(location.search).get('shot'); if (!shot) return;
+  const qp = new URLSearchParams(location.search);
+  if (qp.get('view') === 'manage') { document.body.classList.add('manage'); const rp = $('#roster-panel'); if (rp && !rp.querySelector('.manage-tip')) rp.insertAdjacentHTML('afterbegin', "<p class=\"manage-tip\">这里管理 Agent Team 的<b>部门</b>与<b>常驻成员</b>：点成员编辑岗位提示词、路由 provider / 模型 / 思考强度、形象（可导入桌宠雪碧图）。改动即时生效，下一次派工就用新配置；数据在 ~/.dsh/agent-team/。</p>"); }
+  const shot = qp.get('shot'); if (!shot) return;
   const hide = (sel) => document.querySelectorAll(sel).forEach(e => e.style.display = 'none');
   setTimeout(async () => {
     if (shot === 'stats') { hide('header, .mission, .stage, .lower'); }

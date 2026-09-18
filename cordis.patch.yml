@@ -15,5 +15,6 @@
         promptSection: true          # 往队长的系统提示词里加成员表
         board: true                  # 挂看板（需要 Web 服务）
         basePath: /agent-team        # 看板地址 http://127.0.0.1:3080/agent-team/
+        port: 7790                   # 再开一个独立端口 http://127.0.0.1:7790/（避开 Claude Code 版的 7788；0 = 不开）
         launcher: true               # Web UI 右下角注入「Agent Team」按钮
         checkUpdates: true           # 12 小时查一次 npm 上有没有新版本（只提示，不自动装）

@@ -11,6 +11,8 @@
 
 ![看板](docs/img/01-board.png)
 
+<p align="center"><img src="docs/img/03-settings-manage.png" width="720" alt="DSH 设置里的成员与部门管理"></p>
+
 ## 30 秒看懂
 
 | 你会得到 | 说明 |
@@ -18,7 +20,8 @@
 | **一个工具 `dispatch_member`** | 队长（你正在聊的那个 Agent）用它把任务派给常驻成员；成员各有岗位提示词、模型路由、思考强度。同一回合可并行派多人 |
 | **8 位常驻成员 · 6 个部门** | 指挥部 team-architect；研发部 backend-dev / frontend-dev；质量部 qa-tester / code-reviewer；研究部 researcher；文档部 docs-writer；运维部 release-ops。全部是 `~/.dsh/agent-team/members/*.md`，随便改、随便加 |
 | **队长的系统提示词** | 自动注入一段成员表与派工规范（子代理不注入，省 token） |
-| **看板** | DSH Web 右下角「Agent Team」按钮 → 滑出面板；或直接开 `http://127.0.0.1:3080/agent-team/`。实时动画、部门汇总、成本排行、回放通信、深浅主题 |
+| **看板** | DSH Web 右下角「Agent Team」按钮 → 滑出面板；或直接开 `http://127.0.0.1:3080/agent-team/`；另有**独立端口 `http://127.0.0.1:7790/`**（不依赖 DSH 登录令牌，headless 也有；7790 避开 Claude Code 版的 7788，可改）。实时动画、部门汇总、成本排行、回放通信、深浅主题 |
+| **DSH 设置里的卡片** | 设置 → 插件 → 插件配置 → **Agent Team · 部门与成员**：在 DSH 自己的设置页里增删改部门、成员（岗位提示词 / 路由 / 模型 / 思考强度 / 形象）、导入桌宠；端口、派工 provider 等开关也在同一命名空间 `agent-team` 下 |
 | **token / 成本** | 直接用 Harness 每步 `assistant/message` 里的真实 `usage`（输入 / 输出 / 缓存命中，口径与 DeepSeek 后台一致）；成本按 `provider/model` 最长前缀匹配内置价格表，认不出的模型显示「未定价」而不是瞎算 |
 | **形象** | 自带 13 只（MIT）；桌宠雪碧图（Codex / petdex 格式）拖进来就能用；正在工作的成员也能当场换形象；主体偏小的形象自动按动作放大 |
 | **不会“一装就崩”** | 纯 ESM JavaScript、零运行时依赖、不需要构建；只硬依赖 `sessions` 服务，其余（tools / subagents / systemPrompt / webServer）都是"服务到了才挂"——headless、ACP 这类没有 Web 的组合照样能装、能派工，只是没看板 |
@@ -64,8 +67,8 @@ Web 页面右下角出现 **Agent Team** 按钮。卸载：`dsh plugin --profile
 
 2. 队长的系统提示词里已经有成员表，它会调 `dispatch_member` 派人（通常一回合派 2-4 位并行）。点右下角 **Agent Team**：每位成员一只桌宠从队长身边飞到自己的部门，卡片上是当前工具调用、用时、tokens、成本。
 3. 成员回报后队长汇总。看板收尾时会提示"建议补位"（比如 ≥ 2 人写了代码但质量部没出场）——这是建议，不是错误。
-4. 想让某位成员用更强的模型：看板 → 成员表 → 点成员 → **路由 provider / 模型 / 思考强度** 填上（provider 是 DSH 里注册的路由名，模型 id 是该路由下的 id）。留空 = 跟随队长当前路由。
-5. 想加一个新岗位：**新建成员** → 填标识（如 `security-reviewer`）、部门、简介（队长靠这句挑人）、系统提示词、形象 → 保存。下一次派工就能用。
+4. 想让某位成员用更强的模型：DSH **设置 → 插件 → Agent Team**（或看板底部的成员表）→ 点成员 → **路由 provider / 模型 / 思考强度** 填上（provider 是 DSH 里注册的路由名，模型 id 是该路由下的 id）。留空 = 跟随队长当前路由。
+5. 想加一个新岗位：同一页 **新建成员** → 填标识（如 `security-reviewer`）、部门、简介（队长靠这句挑人）、系统提示词、形象（可导入桌宠 zip / webp / png）→ 保存。下一次派工就能用。**部门管理** 在旁边。
 
 ## 团队是怎么协作的
 
@@ -153,9 +156,22 @@ dept: dev
     maxPromptChars: 20000        # 单次派工 prompt 上限，防止把整段文件贴进去
     board: true                  # 挂看板（需要 Web 服务）
     basePath: /agent-team        # 看板路径
+    port: 7790                   # 独立端口（0 = 不开）。默认避开 Claude Code 版的 7788
     launcher: true               # Web UI 右下角按钮
     checkUpdates: true           # 12 小时查一次 npm 新版本（只提示，不自动装）
 ```
+
+其中 `port / subagentProvider / toolName / launcher / checkUpdates / promptSection` 也注册成了 DSH 的设置命名空间 `agent-team`，可以在 **设置 → 插件 → Agent Team** 里改（端口与工具名重启生效）。
+
+### 端口
+
+| 端口 | 谁在用 |
+|---|---|
+| 3080 | DSH Web 本体（看板挂在它的 `/agent-team/` 下，需要登录令牌） |
+| **7790** | 本插件的独立看板（默认；可改 / 关闭） |
+| 7788 | Claude Code 版 claude-agent-team 的看板——两者可以同时开 |
+
+端口被占用时只打一行警告，不影响启动。
 
 数据目录 `~/.dsh/agent-team/`（`DSH_HOME` 可改；`DSH_AGENT_TEAM_HOME` 可单独指定）：
 
@@ -172,7 +188,8 @@ sprites/         你导入的形象
 | 现象 | 原因 / 处理 |
 |---|---|
 | 终端没有 `[dsh-agent-team] 已加载` | 看 `dsh --profile web --dump-config` 里有没有 `# == dsh-agent-team` 层；没有说明 `dsh plugin add` 没成功（包里需要 `dsh.bundle`） |
-| 有「已加载」没有「看板」行 | 这个 profile 没有 Web 服务（headless / ACP）；派工可用，看板不可用 |
+| 有「已加载」没有「看板」行 | 这个 profile 没有 Web 服务（headless / ACP）；派工可用，看板走独立端口 `http://127.0.0.1:7790/` |
+| 设置里没有 Agent Team 卡片 | Host 半边注册设置命名空间需要 `@deepseek-ai/schemastery`（随包安装）；看终端有没有「设置卡片未注册」；`dsh plugin --profile web add dsh-agent-team` 重装一次会补齐依赖 |
 | 派工返回「成员 X 未正常完成（error）」 | 多半是成员里填的 provider / model 在这个 DSH 里不存在或没配 key。清空成员的路由字段试试；或 `DSH_AGENT_TEAM_DEBUG=1 dsh web` 看详细日志 |
 | 成本显示未定价 | 模型不在价格表：往 `team.json` 加一行 `"<provider>/<model 前缀>"` |
 | 想看看板数据但没有 Web | `DSH_AGENT_TEAM_DUMP=/tmp/snap.json dsh --profile headless "…"`，每回合结束写一份 snapshot |
@@ -192,7 +209,8 @@ node scripts/mock-llm.mjs     # 脚本化的 OpenAI 兼容 mock 模型（零成�
 
 ```
 lib/index.js        插件入口（单行 bundle）：状态折叠 + dispatch_member + 队长提示词 + 按需挂看板
-lib/board.js        看板 HTTP 路由 / 管理 API / 启动按钮注入
+lib/board.js        看板 HTTP 路由 / 管理 API / 启动按钮注入 / 独立端口
+lib/client.js       浏览器半边：DSH 设置页里的「Agent Team」卡片（lazy-CJS factory，手写，无需构建）
 lib/store.js        session/event → 每个会话的画像（队长 / 成员）
 lib/snapshot.js     画像 → snapshot.json（部门、通信、汇总、排行）
 lib/team.js         team.json、成员文件、部门、形象、价格

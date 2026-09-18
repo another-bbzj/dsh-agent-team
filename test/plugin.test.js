@@ -34,7 +34,7 @@ function makeServices({ startImpl } = {}) {
 
 test('首次加载会把默认成员与 team.json 放到用户目录', () => {
   const ctx = new FakeCtx(makeServices())
-  core.apply(ctx, {})
+  core.apply(ctx, { port: 0 })
   const dir = process.env.DSH_AGENT_TEAM_HOME
   assert.ok(fs.existsSync(path.join(dir, 'team.json')))
   assert.equal(fs.readdirSync(path.join(dir, 'members')).filter(f => f.endsWith('.md')).length, 8)
@@ -49,7 +49,7 @@ test('首次加载会把默认成员与 team.json 放到用户目录', () => {
 test('实时折叠：队长派工 → 子会话 → 用量 / 成本 / 状态 / 沟通', async () => {
   const svc = makeServices()
   const ctx = new FakeCtx(svc)
-  core.apply(ctx, {})
+  core.apply(ctx, { port: 0 })
   const t0 = Date.now()
   const lead = fakeSession('session-lead', { cwd: 'C:/proj/demo' })
   ctx.emit('session/created', lead)
@@ -103,7 +103,7 @@ test('实时折叠：队长派工 → 子会话 → 用量 / 成本 / 状态 / �
 
 test('未定价的第三方模型显示未定价而不是瞎算；provider/model 行优先', async () => {
   const { buildSnapshot } = await import('../lib/snapshot.js')
-  const svc = makeServices(); const ctx = new FakeCtx(svc); core.apply(ctx, {})
+  const svc = makeServices(); const ctx = new FakeCtx(svc); core.apply(ctx, { port: 0 })
   const lead = fakeSession('session-p'); ctx.emit('session/created', lead)
   feed(ctx, lead, 'turn/start', { turn: 1 })
   assistant(ctx, lead, 'hi', usage(100000, 100000), 'my-relay', 'Mystery-Model-9')
@@ -129,7 +129,7 @@ test('dispatch_member 工具：找成员 → 调 ctx.subagents.start → 返回�
       return { id: 'session-child-1', localAgent: undefined, result: Promise.resolve({ stopReason: 'completed', output: [{ type: 'text', text: '测试写好了' }] }), dispose: async () => {} }
     },
   })
-  const ctx = new FakeCtx(svc); core.apply(ctx, {})
+  const ctx = new FakeCtx(svc); core.apply(ctx, { port: 0 })
   const tool = svc.tools.get('dispatch_member')
   const agent = { session: fakeSession('session-boss') }
   ctx.emit('session/created', agent.session)
@@ -159,7 +159,7 @@ test('子代理带覆盖参数时还没干活就出错 → 自动去掉覆盖重
       return { id: `session-r${n}`, result: Promise.resolve(bad ? { stopReason: 'error', output: [] } : { stopReason: 'completed', output: [{ type: 'text', text: '成了' }] }), dispose: async () => {} }
     },
   })
-  const ctx = new FakeCtx(svc); core.apply(ctx, {})
+  const ctx = new FakeCtx(svc); core.apply(ctx, { port: 0 })
   fs.writeFileSync(path.join(process.env.DSH_AGENT_TEAM_HOME, 'members', 'odd-dev.md'), "---\nname: odd-dev\ndescription: 路由不存在的成员，测试用\nprovider: ghost\nmodel: ghost-1\ndept: dev\n---\n你是 odd-dev。\n", 'utf8')
   const out = await svc.tools.get('dispatch_member').execute({ member: 'odd-dev', description: 'x', prompt: 'y' }, { agent: { session: fakeSession('s2') }, signal: new AbortController().signal, callId: 'c1' })
   assert.match(out, /成了/); assert.equal(n, 2)
@@ -176,7 +176,7 @@ test('provider 不支持 persona 时退回到把 persona 写进 prompt', async (
       return { id: `session-c${n}`, result: Promise.resolve({ stopReason: 'completed', output: [{ type: 'text', text: 'ok' }] }), dispose: async () => {} }
     },
   })
-  const ctx = new FakeCtx(svc); core.apply(ctx, {})
+  const ctx = new FakeCtx(svc); core.apply(ctx, { port: 0 })
   const out = await svc.tools.get('dispatch_member').execute({ member: 'docs-writer', description: '写文档', prompt: '写 README' }, { agent: { session: fakeSession('s') }, signal: new AbortController().signal, callId: 'c1' })
   assert.match(out, /文文/); assert.equal(n, 2)
   ctx.dispose()
@@ -184,7 +184,7 @@ test('provider 不支持 persona 时退回到把 persona 写进 prompt', async (
 
 test('看板：路由、页面、快照、成员 / 部门 / 形象 API、启动按钮注入（webServer 到位时由核心插件挂载）', async () => {
   const svc = makeServices(); const ctx = new FakeCtx(svc)
-  core.apply(ctx, {})
+  core.apply(ctx, { port: 0 })
   const prefix = svc.webServer._routes.find(r => r.kind === 'prefix' && r.path === '/agent-team')
   assert.ok(prefix, '注册了 /agent-team 前缀路由')
   assert.ok(svc.webServer._routes.some(r => r.path === '/agent-team-launcher.js'))
@@ -235,10 +235,27 @@ test('缺 Web 服务的组合（headless）：只硬依赖 sessions，看板挂�
   assert.equal(core.Config['~standard'].validate({ toolName: 'bad name!' }).value.toolName, 'dispatch_member')
   const svc = makeServices(); delete svc.webServer
   const ctx = new FakeCtx(svc)
-  core.apply(ctx, {})
+  core.apply(ctx, { port: 0 })
   assert.ok(svc.tools.get('dispatch_member')); assert.equal(svc.systemPrompt._sections.length, 1)
-  assert.deepEqual(ctx.pendingInjects, [['webServer']])
+  assert.deepEqual(ctx.pendingInjects, [['settings'], ['webServer']])
   ctx.dispose()
 })
 
 test.after(() => { try { fs.rmSync(home, { recursive: true, force: true }) } catch { /* ignore */ } })
+
+test('浏览器半边：lazy-CJS factory 产物能被宿主的模块加载器执行，导出 apply/inject 并认领 settings.plugin.item', async () => {
+  const src = fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
+  let loaded = null
+  const win = { __ModuleLoader__: { load: (m) => { loaded = m } } }
+  new Function('window', src)(win)
+  assert.equal(loaded.id, 'dsh-agent-team')
+  const react = { createElement: (...a) => a, useState: (v) => [v, () => {}], useEffect: () => {} }
+  const mod = loaded.factory((name) => { assert.equal(name, 'react'); return react })
+  assert.deepEqual(mod.inject, ['slots'])
+  const regs = []
+  const slots = { inject: (name, fn) => fn(), register: (spec, comp) => { regs.push({ spec, comp }); return () => {} } }
+  mod.apply({ slots })
+  const card = regs.find(r => r.spec.name === 'settings.plugin.item')
+  assert.equal(card.spec.key, 'agent-team', '与 Host 半边 installSection 的命名空间一致')
+  assert.ok(card.comp({ view: 'page' }), '能渲染')
+})

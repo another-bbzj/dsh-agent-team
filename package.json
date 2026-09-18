@@ -1,24 +1,59 @@
 {
   "name": "dsh-agent-team",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DeepSeek Harness 插件：部门制 Agent Team + 可视化指挥室看板（每个子代理一只动画桌宠、部门分组、派工/回报/交接连线、token 与成本、成员/部门/形象管理）",
-  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "agent-team", "subagent", "board", "pet"],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "agent-team",
+    "subagent",
+    "board",
+    "pet"
+  ],
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./board": "./lib/board.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./client": "./lib/client.js"
   },
-  "files": ["lib", "assets", "cordis.patch.yml", "README.md", "LICENSE"],
-  "engines": { "node": ">=20" },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node --test test/plugin.test.js",
     "smoke": "node scripts/smoke.mjs"
   },
-  "repository": { "type": "git", "url": "git+https://github.com/another-bbzj/dsh-agent-team.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/another-bbzj/dsh-agent-team.git"
+  },
   "homepage": "https://github.com/another-bbzj/dsh-agent-team#readme",
-  "bugs": { "url": "https://github.com/another-bbzj/dsh-agent-team/issues" },
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
-  "license": "MIT"
+  "bugs": {
+    "url": "https://github.com/another-bbzj/dsh-agent-team/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ]
+    }
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.2"
+  }
 }
