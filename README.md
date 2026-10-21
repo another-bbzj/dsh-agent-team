@@ -1,30 +1,26 @@
-# dsh-agent-team · DeepSeek Harness 的可视化 Agent Team
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/img/readme-cover-light.svg">
+  <img src="docs/img/readme-cover.svg" width="100%" alt="dsh-agent-team · DeepSeek Harness 的可视化 Agent Team">
+</picture>
+
+<div align="center">
+
+**给 DeepSeek Harness 装上一支分工清楚、过程可见的 Agent Team。**
 
 [![tests](https://github.com/another-bbzj/dsh-agent-team/actions/workflows/test.yml/badge.svg)](https://github.com/another-bbzj/dsh-agent-team/actions/workflows/test.yml)
 [![npm](https://img.shields.io/npm/v/dsh-agent-team)](https://www.npmjs.com/package/dsh-agent-team)
 ![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 
-给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）装上一支**部门制的 Agent Team**，并把每个子代理的工作**实时画出来**：每人一只不重复的动画桌宠、按部门分组、派工 / 回报 / 文件交接 / 成员私信的连线动画、每个人的 token 与成本、成员 / 部门 / 形象都能在页面上增删改。
+[快速安装](#三分钟装好) · [第一次使用](#第一次使用完整走一遍) · [看板功能](#看板功能) · [配置](#配置) · [排错](#排错)
 
-它是 [claude-agent-team](https://github.com/another-bbzj/claude-agent-team)（Claude Code 版）的 DSH 移植：看板一模一样，底层完全按 Harness 的生态协议重写——**一个 npm 包 = 一个 bundle**，靠 `session/event` 火线拿数据，靠 `ctx.subagents` 派工，靠 `ctx.webServer` 挂页面，任何模型路由（DeepSeek 官方、OpenAI 兼容中转、自建）都能用。
+</div>
 
-![看板](docs/img/01-board.png)
+按岗位派工，在同一个看板里看到成员进度、通信、token 与估算成本。通过 Harness 原生事件接入，纯 ESM，一个 npm 包即可安装。
 
-<p align="center"><img src="docs/img/03-settings-manage.png" width="720" alt="DSH 设置里的成员与部门管理"></p>
-
-## 30 秒看懂
-
-| 你会得到 | 说明 |
-|---|---|
-| **一个工具 `dispatch_member`** | 队长（你正在聊的那个 Agent）用它把任务派给常驻成员；成员各有岗位提示词、模型路由、思考强度。同一回合可并行派多人 |
-| **8 位常驻成员 · 6 个部门** | 指挥部 team-architect；研发部 backend-dev / frontend-dev；质量部 qa-tester / code-reviewer；研究部 researcher；文档部 docs-writer；运维部 release-ops。全部是 `~/.dsh/agent-team/members/*.md`，随便改、随便加 |
-| **队长的系统提示词** | 自动注入一段成员表与派工规范（子代理不注入，省 token） |
-| **看板** | DSH Web 右下角「Agent Team」按钮 → 滑出面板；或直接开 `http://127.0.0.1:3080/agent-team/`；另有**独立端口 `http://127.0.0.1:7790/`**（不依赖 DSH 登录令牌，headless 也有；7790 避开 Claude Code 版的 7788，可改）。实时动画、部门汇总、成本排行、回放通信、深浅主题 |
-| **DSH 设置里的卡片** | 设置 → 插件 → 插件配置 → **Agent Team · 部门与成员**：在 DSH 自己的设置页里增删改部门、成员（岗位提示词 / 路由 / 模型 / 思考强度 / 形象）、导入桌宠；端口、派工 provider 等开关也在同一命名空间 `agent-team` 下 |
-| **token / 成本** | 直接用 Harness 每步 `assistant/message` 里的真实 `usage`（输入 / 输出 / 缓存命中，口径与 DeepSeek 后台一致）；成本按 `provider/model` 最长前缀匹配内置价格表，认不出的模型显示「未定价」而不是瞎算 |
-| **形象** | 自带 13 只（MIT）；桌宠雪碧图（Codex / petdex 格式）拖进来就能用；正在工作的成员也能当场换形象；主体偏小的形象自动按动作放大 |
-| **不会“一装就崩”** | 纯 ESM JavaScript、不需要构建（唯一依赖是 DSH 自己的 schema 库 `@deepseek-ai/schemastery`，缺了也只是没设置卡片）；只硬依赖 `sessions` 服务，其余（tools / subagents / systemPrompt / webServer）都是"服务到了才挂"——headless、ACP 这类没有 Web 的组合照样能装、能派工，只是没看板 |
+| 分工 | 协作 | 可见 |
+| :--- | :--- | :--- |
+| 常驻成员、部门与模型路由 | 派工、回报、交接与私信 | 进度、用量与成本估算 |
 
 ## 三分钟装好
 
@@ -59,6 +55,39 @@ dsh web
 Web 页面右下角出现 **Agent Team** 按钮。卸载：`dsh plugin --profile web remove dsh-agent-team`。
 
 > 其它 profile（`headless`、自建 profile）同样 `dsh plugin --profile <name> add dsh-agent-team`。没有 Web 服务的组合会自动只装派工部分。
+
+## 了解这个插件
+
+给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）装上一支**部门制的 Agent Team**，并把每个子代理的工作**实时画出来**：每人一只不重复的动画桌宠、按部门分组、派工 / 回报 / 文件交接 / 成员私信的连线动画、每个人的 token 与成本、成员 / 部门 / 形象都能在页面上增删改。
+
+它是 [claude-agent-team](https://github.com/another-bbzj/claude-agent-team)（Claude Code 版）的 DSH 移植：看板一模一样，底层完全按 Harness 的生态协议重写——**一个 npm 包 = 一个 bundle**，靠 `session/event` 火线拿数据，靠 `ctx.subagents` 派工，靠 `ctx.webServer` 挂页面，任何模型路由（DeepSeek 官方、OpenAI 兼容中转、自建）都能用。
+
+<details>
+<summary>完整能力表：成员、模型、用量、安装与运行方式</summary>
+
+| 你会得到 | 说明 |
+|---|---|
+| **一个工具 `dispatch_member`** | 队长（你正在聊的那个 Agent）用它把任务派给常驻成员；成员各有岗位提示词、模型路由、思考强度。同一回合可并行派多人 |
+| **8 位常驻成员 · 6 个部门** | 指挥部 team-architect；研发部 backend-dev / frontend-dev；质量部 qa-tester / code-reviewer；研究部 researcher；文档部 docs-writer；运维部 release-ops。全部是 `~/.dsh/agent-team/members/*.md`，随便改、随便加 |
+| **队长的系统提示词** | 自动注入一段成员表与派工规范（子代理不注入，省 token） |
+| **看板** | DSH Web 右下角「Agent Team」按钮 → 滑出面板；或直接开 `http://127.0.0.1:3080/agent-team/`；另有**独立端口 `http://127.0.0.1:7790/`**（不依赖 DSH 登录令牌，headless 也有；7790 避开 Claude Code 版的 7788，可改）。实时动画、部门汇总、成本排行、回放通信、深浅主题 |
+| **DSH 设置里的卡片** | 设置 → 插件 → 插件配置 → **Agent Team · 部门与成员**：在 DSH 自己的设置页里增删改部门、成员（岗位提示词 / 路由 / 模型 / 思考强度 / 形象）、导入桌宠；端口、派工 provider 等开关也在同一命名空间 `agent-team` 下 |
+| **token / 成本** | 直接用 Harness 每步 `assistant/message` 里的真实 `usage`（输入 / 输出 / 缓存命中，口径与 DeepSeek 后台一致）；成本按 `provider/model` 最长前缀匹配内置价格表，认不出的模型显示「未定价」而不是瞎算 |
+| **形象** | 自带 13 只（MIT）；桌宠雪碧图（Codex / petdex 格式）拖进来就能用；正在工作的成员也能当场换形象；主体偏小的形象自动按动作放大 |
+| **不会“一装就崩”** | 纯 ESM JavaScript、不需要构建（唯一依赖是 DSH 自己的 schema 库 `@deepseek-ai/schemastery`，缺了也只是没设置卡片）；只硬依赖 `sessions` 服务，其余（tools / subagents / systemPrompt / webServer）都是"服务到了才挂"——headless、ACP 这类没有 Web 的组合照样能装、能派工，只是没看板 |
+
+</details>
+
+<details>
+<summary>查看真实看板与成员管理界面</summary>
+
+![DeepSeek Harness Agent Team 看板](docs/img/01-board.png)
+
+![DSH 设置里的成员与部门管理](docs/img/03-settings-manage.png)
+
+界面截图用于说明功能；示例会话中的用量与成本不代表基准。
+
+</details>
 
 ## 第一次使用：完整走一遍
 
