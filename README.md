@@ -47,7 +47,7 @@ dsh web
 终端会多三行：
 
 ```
-[dsh-agent-team] v0.2.0 已加载：工具 dispatch_member，8 位成员
+[dsh-agent-team] v0.2.1 已加载：工具 dispatch_member，8 位成员
 [dsh-agent-team] 独立看板 http://127.0.0.1:7790/agent-team/
 [dsh-agent-team] 看板 http://127.0.0.1:3080/agent-team/
 ```
@@ -160,6 +160,15 @@ dept: dev
 | 详情抽屉 | 点任何一位：形象（当场换 / 只改这位 / 改这个角色 / 导入）、任务指令、概况、写过的文件、通信、交付回报、动作时间线 |
 | 常驻成员 | 全部成员定义；新建 / 编辑 / 删除；部门管理 |
 | 回放 | 把本次会话的通信按时间重放一遍 |
+| 停滞提醒 | 空闲、停滞或出错，且能算出安静时间、超过阈值（默认 10 分钟）时，顶栏出现提醒，可逐条点「知道了」。进行中和已完成不提醒 |
+
+安静时间只来自 Harness 事件：优先最后一次活动时间，没有则用时间线里最新的一条或结束时间。只有开工时间、没有后续事件时不提醒，也不会编一个时长。出错原因只用事件里记下的 `reason.kind` / `stopReason`（例如 `error`），没有更长的说明就不补。成员卡片同样：有这句才写进「中断（…）」，没有就只写「中断」。
+
+![停滞提醒：测测出错、阿服停滞可逐条关闭；小界仍在进行中，不在名单里](docs/img/04-stall-alert.png)
+
+进行中的成员要等服务端把它标成「停滞」才会进提醒：回合还开着，并且超过 **10 分钟**没有新事件。这个 10 分钟写在状态折叠里。看板上把分钟调小，只会让已经空闲或出错的成员更早出现，不会把仍在进行中的人提前标成停滞；调大则会在已经停滞之后再多等一会儿。队长本人不在这份名单里。
+
+「知道了」、分钟、安静开关和桌面通知开关都存在这台浏览器里。活动时间变了，同一条会再出现。桌面通知默认关，只有点开关时才向浏览器要权限。可选地在 `~/.dsh/agent-team/team.json` 写 `"stallAlertSec": 600`（秒，限制在 60 到 86400），作为没在浏览器里改过分钟时的默认阈值。不写就用 600。自带的 `assets/team.json` 不带这一项。
 
 ## 形象（桌宠）
 
@@ -206,7 +215,7 @@ dept: dev
 数据目录 `~/.dsh/agent-team/`（`DSH_HOME` 可改；`DSH_AGENT_TEAM_HOME` 可单独指定）：
 
 ```
-team.json        部门、成员登记（部门 / 显示名 / 岗位 / 形象）、正在工作成员的临时形象、价格表
+team.json        部门、成员登记（部门 / 显示名 / 岗位 / 形象）、正在工作成员的临时形象、价格表；可选 stallAlertSec（停滞提醒默认阈值，秒）
 members/*.md     成员定义（岗位提示词 + provider / model / effort）
 sprites/         你导入的形象
 ```
@@ -224,11 +233,12 @@ sprites/         你导入的形象
 | 成本显示未定价 | 模型不在价格表：往 `team.json` 加一行 `"<provider>/<model 前缀>"` |
 | 想看看板数据但没有 Web | `DSH_AGENT_TEAM_DUMP=/tmp/snap.json dsh --profile headless "…"`，每回合结束写一份 snapshot |
 | 想不装 DSH 先看看效果 | `node scripts/demo.mjs` → http://127.0.0.1:7789/agent-team/ ，脚本化演一场四人协作 |
+| 成员很久没动静，却没有停滞提醒 | 进行中要先被标成「停滞」（回合仍开着且超过 10 分钟没有新事件）。已完成不提醒。点过「知道了」且活动时间没变也不会再出现。阈值可在看板上改分钟，或在 `team.json` 写 `stallAlertSec` |
 
 ## 自检与测试
 
 ```bash
-npm test                      # node --test：状态折叠、定价、派工工具、退化重试、看板 API、headless 组合
+npm test                      # node --test：状态折叠、定价、派工工具、退化重试、看板 API、headless 组合、停滞提醒
 node scripts/demo.mjs         # 本地演示看板
 node scripts/mock-llm.mjs     # 脚本化的 OpenAI 兼容 mock 模型（零成本端到端）
 ```
@@ -242,7 +252,8 @@ lib/index.js        插件入口（单行 bundle）：状态折叠 + dispatch_me
 lib/board.js        看板 HTTP 路由 / 管理 API / 启动按钮注入 / 独立端口
 lib/client.js       浏览器半边：DSH 设置页里的「Agent Team」卡片（lazy-CJS factory，手写，无需构建）
 lib/store.js        session/event → 每个会话的画像（队长 / 成员）
-lib/snapshot.js     画像 → snapshot.json（部门、通信、汇总、排行）
+lib/snapshot.js     画像 → snapshot.json（部门、通信、汇总、排行、停滞提醒）
+lib/stall.js        停滞提醒：安静时间与阈值。没有活动时间就不编造时长
 lib/team.js         team.json、成员文件、部门、形象、价格
 assets/index.html   看板前端（单文件，与 claude-agent-team 共用）
 assets/members/     8 位默认成员 · assets/sprites/ 13 只自带形象 · assets/team.json 默认配置与价格表
@@ -255,6 +266,7 @@ test/               node --test
 | | claude-agent-team | dsh-agent-team |
 |---|---|---|
 | 数据来源 | 读 `~/.claude/projects` 转录文件 | 进程内 `session/event` 火线（无文件解析、无延迟） |
+| 停滞提醒 | 转录上的安静时间，可关闭 | 会话事件上的安静时间，可关闭。进行中仍要满 10 分钟无事件才标成停滞 |
 | 派工 | Claude Code 原生 `Agent` 工具 + `~/.claude/agents/*.md` | 插件自己的 `dispatch_member` → `ctx.subagents.start`，成员 = persona + 路由 |
 | 模型 | Claude 家族 | 任意路由：DeepSeek 官方、OpenAI 兼容中转、自建适配器 |
 | 服务 | 独立 Python 进程 :7788 | 挂在 DSH 自己的 Web 服务上，随 `dsh web` 启停 |

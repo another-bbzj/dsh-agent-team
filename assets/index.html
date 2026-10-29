@@ -323,10 +323,26 @@
   @keyframes spin { to { transform: rotate(360deg);} }
   @keyframes fly { from { offset-distance: 0%; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
   @keyframes trail { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-  @media (prefers-reduced-motion: reduce) { .ring, .zz, .live, .spin, .wire.active, .bar > i, .mail, .rel.hot { animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .ring, .zz, .live, .spin, .wire.active, .bar > i, .mail, .rel.hot, #stall-badge, .stall-panel { animation: none !important; } }
+
+  #stall-badge[hidden], .stall-panel[hidden] { display: none !important; }
+  .stall-panel { position: relative; z-index: 2; padding: 8px 22px 10px; background: color-mix(in srgb, var(--warn) 12%, var(--bg-2)); border-bottom: 1px solid color-mix(in srgb, var(--warn) 42%, var(--line)); }
+  .stall-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 12.5px; }
+  .stall-bar strong { letter-spacing: .08em; font-size: 12px; }
+  .stall-min input { width: 4.4em; font: inherit; font-family: var(--mono); padding: 3px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  .stall-default, .stall-note { color: var(--text-3); font-size: 11.5px; }
+  .stall-default { font-family: var(--mono); }
+  .stall-note { margin: 6px 0 0; line-height: 1.55; }
+  .stall-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 168px; overflow: auto; }
+  .stall-list li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .stall-open { flex: 1; min-width: 0; text-align: left; padding: 3px 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stall-open:hover { color: var(--warn); }
+  .stall-btn { flex: none; margin-left: 0; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: 11.5px; color: var(--text-2); }
+  .stall-btn:hover { background: var(--warn-soft); color: var(--warn); }
+  @media (max-width: 900px) { .stall-panel { padding: 8px 12px 10px; } }
 
   /* ?view=manage：只显示成员 / 部门 / 形象管理（嵌在 DSH 设置页的插件配置里） */
-  body.manage header, body.manage .mission, body.manage .stage, body.manage .statsrow, body.manage .lower > .panel:not(#roster-panel), body.manage .drawer { display: none !important; }
+  body.manage header, body.manage .mission, body.manage .stall-panel, body.manage .stage, body.manage .statsrow, body.manage .lower > .panel:not(#roster-panel), body.manage .drawer { display: none !important; }
   body.manage main { padding: 8px; } body.manage .lower { grid-template-columns: 1fr; margin-top: 0; }
   body.manage #roster-panel { max-height: none; }
   body.manage .manage-tip { font-size: 12.5px; color: var(--text-2); margin: 0 0 10px; line-height: 1.6; }
@@ -336,6 +352,7 @@
 <header>
   <h1><span class="live" id="live"></span>Agent Team 指挥室</h1>
   <span class="pill brand" id="phase">组队中</span>
+  <button type="button" class="pill warn" id="stall-badge" hidden aria-controls="stall-panel" aria-expanded="false" title="空闲、停滞或出错、并且安静时间达到阈值的成员。点开可逐条忽略。进行中和已完成的不在这里。">停滞 0</button>
   <div class="stats" id="stats"></div>
   <span class="spacer"></span>
   <span class="pill mono" id="session-pill">—</span>
@@ -343,6 +360,18 @@
   <span class="theme" id="theme" title="主题"><button data-t="auto">自动</button><button data-t="light">☀ 浅色</button><button data-t="dark">☾ 深色</button></span>
 </header>
 <div class="mission" id="mission"><b><span class="live-dot"></span>LIVE</b><span id="mission-text">实时监听 Agent Team 工作</span><span class="sub" id="mission-sub"></span></div>
+<section class="stall-panel" id="stall-panel" hidden aria-label="停滞提醒">
+  <div class="stall-bar">
+    <strong>停滞提醒</strong>
+    <label class="stall-min">超过 <input id="stall-minutes" type="number" min="1" max="1440" step="1" inputmode="numeric" value="10" aria-describedby="stall-default"> 分钟</label>
+    <span class="stall-default" id="stall-default">默认 10 分钟</span>
+    <label class="stall-quiet"><input type="checkbox" id="stall-quiet"> 安静</label>
+    <button type="button" class="stall-btn" id="stall-notify" aria-pressed="false">桌面通知：关</button>
+    <button type="button" class="stall-btn" id="stall-collapse">收起</button>
+  </div>
+  <ul class="stall-list" id="stall-list"></ul>
+  <p class="stall-note">只提醒空闲、停滞或出错、并且安静时间达到上面阈值的成员。进行中和已完成的不提醒。没有活动时间的也不提醒（开工时间单独不算，不补一个时长）。进行中的成员要等服务端把它标成「停滞」——回合还开着、且超过 10 分钟没有新的 Harness 事件——才会进入这份名单；把分钟调小不会提前改写进行中的状态。调大则会在已经停滞之后再多等一会儿。「知道了」只忽略这一次安静，活动时间变了会再出现。安静默认关闭；打开后不自动展开、不发桌面通知，角标还在。桌面通知只在点这个开关时才向浏览器要权限。时长来自事件时间，不是账单。</p>
+</section>
 
 <main>
   <section class="stage">
@@ -618,7 +647,7 @@ function stateText(m) {
   if (m.status === 'running') { const quiet = Date.now()/1000 - m.lastActivityAt; if (quiet > 15) return `思考/生成中 · ${Math.round(quiet)}s 未落笔`; return m.current && !m.current.done ? `正在${TOOL_ZH[m.current.name] || '使用'} ${shortTool(m.current.name)}` : '思考中…'; }
   if (m.status === 'completed') return `✓ 已交付 · 用时 ${fmtDur(m.startedAt, m.endedAt)}`;
   if (m.status === 'stalled') return `zZ 已 ${fmtRel(m.lastActivityAt)}无动静`;
-  if (m.status === 'error') return '✕ 中断（token 上限）';
+  if (m.status === 'error') return m.errorReason ? `✕ 中断（${m.errorReason}）` : '✕ 中断';
   return '待命';
 }
 function spriteState(m, isLead, snap) {
@@ -1101,11 +1130,252 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('pointerdown', (e) => {
   const dr = $('#drawer'); if (!dr.classList.contains('open')) return;
-  if (dr.contains(e.target) || e.target.closest('.person, .task, .msg, .ra, .modal, #am-pet-file')) return;   // 点人物 / 卡片是切换，不是关闭
+  if (dr.contains(e.target) || e.target.closest('.person, .task, .msg, .ra, .modal, #am-pet-file, #stall-panel, #stall-badge')) return;   // 点人物 / 卡片是切换，不是关闭
   selectedId = null; dr.classList.remove('open'); if (prev) layout(prev);
 });
 $('#d-close').addEventListener('click', () => { selectedId = null; $('#drawer').classList.remove('open'); if (prev) layout(prev); });
 $('#session-select').addEventListener('change', (e) => { selectedSession = e.target.value; prev = null; firstLoad = true; seenComms.clear(); seenFeed.clear(); for (const el of personEls.values()) { el._sprite.destroy(); el.remove(); } personEls.clear(); for (const el of deptEls.values()) el.remove(); deptEls.clear(); for (const el of taskEls.values()) el.remove(); taskEls.clear(); tick(); });
+
+/* 与 lib/stall.js 的 memberIdleAge / stallCandidates 保持一致。
+   快照已带 stallAlerts.candidates 时，页面用那一份，只在本地套阈值和「知道了」。 */
+/* stall-alerts:start */
+function stallFinite(value) {
+  if (typeof value !== 'number' || !isFinite(value)) return null;
+  return value;
+}
+function stallClip(value, limit) {
+  return typeof value === 'string' ? value.slice(0, limit) : '';
+}
+function stallIdleAge(member, now) {
+  const nowN = stallFinite(now);
+  if (nowN == null || !member || typeof member !== 'object') return null;
+  const explicit = stallFinite(member.idleSeconds);
+  if (explicit != null && explicit >= 0) return { seconds: explicit, basis: 'idleSeconds', anchor: nowN - explicit };
+  const last = stallFinite(member.lastActivityAt);
+  if (last != null && last > 0) {
+    if (last > nowN) return { seconds: 0, basis: 'lastActivityAt', anchor: last };
+    return { seconds: nowN - last, basis: 'lastActivityAt', anchor: last };
+  }
+  let newest = null;
+  const timeline = Array.isArray(member.timeline) ? member.timeline : [];
+  for (let i = 0; i < timeline.length; i++) {
+    const event = timeline[i];
+    const ts = event && stallFinite(event.ts);
+    if (ts != null && ts > 0 && (newest == null || ts > newest)) newest = ts;
+  }
+  const ended = stallFinite(member.endedAt);
+  if (ended != null && ended > 0 && (newest == null || ended > newest)) newest = ended;
+  if (newest == null) return null;
+  if (newest > nowN) return { seconds: 0, basis: 'lastEvent', anchor: newest };
+  return { seconds: nowN - newest, basis: 'lastEvent', anchor: newest };
+}
+function stallCandidatesFromMembers(members, now) {
+  if (!Array.isArray(members)) return [];
+  const found = [];
+  for (let i = 0; i < members.length; i++) {
+    const member = members[i];
+    if (!member || typeof member !== 'object' || (member.status !== 'idle' && member.status !== 'error' && member.status !== 'stalled')) continue;
+    const age = stallIdleAge(member, now);
+    if (!age) continue;
+    const ident = typeof member.id === 'string' ? member.id : '';
+    found.push({
+      id: ident,
+      name: stallClip(member.name, 80) || ident || '成员',
+      status: member.status,
+      idleSeconds: Math.floor(age.seconds),
+      basis: age.basis,
+      anchor: age.anchor,
+      errorReason: stallClip(member.errorReason, 120),
+    });
+  }
+  found.sort((a, b) => (b.idleSeconds - a.idleSeconds) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) || (a.status < b.status ? -1 : a.status > b.status ? 1 : 0));
+  return found;
+}
+/* stall-alerts:end */
+
+const STALL_BASE_TITLE = document.title;
+const STALL_DISMISS_KEY = 'dsh-agent-team-stall-dismissed';
+var stallForceOpen = false;
+var stallShown = [];
+var stallNotified = {};
+var stallIconCount = -1;
+var stallIconImage = null;
+var stallListSig = '';
+
+function stallReadMap(key) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || '{}');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    return raw;
+  } catch (e) { return {}; }
+}
+function stallQuiet() {
+  try { return localStorage.getItem('dsh-agent-team-stall-quiet') === '1'; } catch (e) { return false; }
+}
+function stallNotifyOn() {
+  try { return localStorage.getItem('dsh-agent-team-stall-notify') === '1'; } catch (e) { return false; }
+}
+function stallStoredMinutes() {
+  try {
+    const raw = localStorage.getItem('dsh-agent-team-stall-min');
+    if (raw == null || raw === '') return null;
+    const n = Number(raw);
+    if (!isFinite(n) || n < 1 || n > 1440) return null;
+    return Math.round(n);
+  } catch (e) { return null; }
+}
+function stallThresholdSec(snap) {
+  const stored = stallStoredMinutes();
+  if (stored != null) return stored * 60;
+  const remote = snap && snap.stallAlerts && stallFinite(snap.stallAlerts.thresholdSec);
+  if (remote != null && remote >= 60 && remote <= 86400) return remote;
+  return 600;
+}
+function stallKey(item) {
+  if (item.basis === 'idleSeconds') return (item.id || '') + '|' + (item.status || '') + '|idleSeconds';
+  const anchor = stallFinite(item.anchor);
+  return (item.id || '') + '|' + (item.status || '') + '|' + (item.basis || '') + '|' + (anchor == null ? 0 : Math.round(anchor));
+}
+function stallRows(snap) {
+  const remote = snap && snap.stallAlerts && Array.isArray(snap.stallAlerts.candidates);
+  const source = remote ? snap.stallAlerts.candidates : stallCandidatesFromMembers((snap && snap.members) || [], Date.now() / 1000);
+  const rows = [];
+  for (let i = 0; i < source.length; i++) {
+    const item = source[i];
+    const age = item && stallFinite(item.idleSeconds);
+    if (!item || (item.status !== 'idle' && item.status !== 'error' && item.status !== 'stalled') || age == null || age < 0) continue;
+    rows.push(item);
+  }
+  return rows;
+}
+function stallActive(snap) {
+  const threshold = stallThresholdSec(snap);
+  const dismissed = stallReadMap(STALL_DISMISS_KEY);
+  return stallRows(snap).filter(item => item.idleSeconds >= threshold && !dismissed[stallKey(item)]);
+}
+function stallIdleLabel(seconds) {
+  const s = Math.max(0, Math.floor(seconds));
+  if (s < 60) return s + ' 秒';
+  const minutes = Math.floor(s / 60);
+  if (minutes < 60) return minutes + ' 分钟';
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return rem ? hours + ' 小时 ' + rem + ' 分钟' : hours + ' 小时';
+}
+function stallText(item) {
+  const why = item.status === 'error'
+    ? ('出错' + (typeof item.errorReason === 'string' && item.errorReason ? ' · ' + item.errorReason : ''))
+    : (STATUS_LABEL[item.status] || item.status);
+  return (item.name || '成员') + ' · ' + why + ' · 已 ' + stallIdleLabel(item.idleSeconds) + '无动静';
+}
+function stallCollapsed() {
+  try { return sessionStorage.getItem('dsh-agent-team-stall-collapsed') === '1'; } catch (e) { return false; }
+}
+function stallCollapse() {
+  stallForceOpen = false;
+  try { sessionStorage.setItem('dsh-agent-team-stall-collapsed', '1'); } catch (e) {}
+  const panel = $('#stall-panel');
+  if (panel) panel.hidden = true;
+  const badge = $('#stall-badge');
+  if (badge) badge.setAttribute('aria-expanded', 'false');
+}
+function paintStallIcon(count) {
+  if (count === stallIconCount) return;
+  stallIconCount = count;
+  const link = document.querySelector('link[rel="icon"]');
+  if (!link) return;
+  if (!link.dataset.base) link.dataset.base = link.getAttribute('href') || 'favicon.png?v=2';
+  if (!count) {
+    if (link.getAttribute('href') !== link.dataset.base) link.setAttribute('href', link.dataset.base);
+    return;
+  }
+  const apply = (img, requested) => {
+    if (!img || stallIconCount !== requested) return;
+    try {
+      const size = 32, canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, size, size);
+      ctx.fillStyle = '#c98a12';
+      ctx.beginPath();
+      ctx.arc(23, 9, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(requested > 9 ? '9+' : String(requested), 23, 9.5);
+      link.href = canvas.toDataURL('image/png');
+    } catch (e) {}
+  };
+  if (stallIconImage) { apply(stallIconImage, count); return; }
+  const img = new Image();
+  img.onload = () => { stallIconImage = img; apply(img, count); };
+  img.src = link.dataset.base;
+}
+function stallDeliverNotifications(items) {
+  if (!items.length || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const body = items.slice(0, 3).map(stallText).join('\n');
+  const title = items.length === 1 ? ('指挥室 · ' + (items[0].name || '成员')) : ('指挥室 · ' + items.length + ' 位成员停住了');
+  try { new Notification(title, { body: body, tag: items.length === 1 ? ('stall:' + stallKey(items[0])) : 'stall-batch' }); } catch (e) {}
+}
+function renderStallNotifyButton() {
+  const button = $('#stall-notify');
+  if (!button) return;
+  const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted' && stallNotifyOn();
+  button.textContent = typeof Notification === 'undefined' ? '桌面通知不可用' : Notification.permission === 'denied' ? '桌面通知被拒绝' : granted ? '桌面通知：开' : '桌面通知：关';
+  button.setAttribute('aria-pressed', granted ? 'true' : 'false');
+}
+function renderStallAlerts(snap, booting) {
+  const panel = $('#stall-panel'), badge = $('#stall-badge');
+  if (!panel || !badge) return;
+  const active = stallActive(snap);
+  const quiet = stallQuiet();
+  const fresh = [];
+  for (let i = 0; i < active.length; i++) {
+    const key = stallKey(active[i]);
+    if (stallNotified[key]) continue;
+    stallNotified[key] = 1;
+    fresh.push(active[i]);
+  }
+  if (!booting && !quiet && stallNotifyOn()) stallDeliverNotifications(fresh);
+  const show = active.length && (stallForceOpen || (!quiet && !stallCollapsed()));
+  if (!active.length) stallForceOpen = false;
+  panel.hidden = !show;
+  badge.hidden = !active.length;
+  badge.textContent = (quiet ? '安静 · ' : '') + '停滞 ' + active.length;
+  badge.setAttribute('aria-expanded', show ? 'true' : 'false');
+  document.title = active.length ? '(' + active.length + ') ' + STALL_BASE_TITLE : STALL_BASE_TITLE;
+  paintStallIcon(active.length);
+  const minutes = Math.round(stallThresholdSec(snap) / 60);
+  const input = $('#stall-minutes');
+  if (input && document.activeElement !== input) input.value = String(minutes);
+  const remote = snap && snap.stallAlerts && stallFinite(snap.stallAlerts.thresholdSec);
+  const defMin = remote != null ? Math.max(1, Math.round(remote / 60)) : 10;
+  const hint = $('#stall-default');
+  if (hint) hint.textContent = '默认 ' + defMin + ' 分钟';
+  const quietBox = $('#stall-quiet');
+  if (quietBox) quietBox.checked = quiet;
+  renderStallNotifyButton();
+  stallShown = active;
+  const sig = active.map(item => stallKey(item) + ':' + Math.floor(item.idleSeconds / 60) + ':' + stallText(item)).join('\n');
+  if (sig === stallListSig) return;
+  stallListSig = sig;
+  const list = $('#stall-list');
+  if (!list) return;
+  list.innerHTML = active.map((item, index) => `<li><button type="button" class="stall-open" data-stall-open="${index}">${esc(stallText(item))}</button><button type="button" class="stall-btn stall-dismiss" data-stall-dismiss="${index}">知道了</button></li>`).join('');
+}
+function stallDismiss(index) {
+  const item = stallShown[index];
+  if (!item) return;
+  const bag = stallReadMap(STALL_DISMISS_KEY);
+  bag[stallKey(item)] = 1;
+  const keys = Object.keys(bag);
+  if (keys.length > 80) keys.slice(0, keys.length - 80).forEach(key => { delete bag[key]; });
+  try { localStorage.setItem(STALL_DISMISS_KEY, JSON.stringify(bag)); } catch (e) {}
+  stallListSig = null;
+  if (prev) renderStallAlerts(prev, false);
+}
 
 let failing = 0;
 async function tick() {
@@ -1113,11 +1383,81 @@ async function tick() {
     const r = await fetch('snapshot.json' + (selectedSession ? `?session=${encodeURIComponent(selectedSession)}` : ''), { cache: 'no-store' });
     const snap = await r.json();
     failing = 0; $('#live').classList.remove('off');
-    renderHeader(snap); layout(snap); renderStats(snap); renderTasks(snap); renderComms(snap); animateComms(snap); renderFeed(snap); renderRoster(snap);
+    renderHeader(snap); renderStallAlerts(snap, firstLoad); layout(snap); renderStats(snap); renderTasks(snap); renderComms(snap); animateComms(snap); renderFeed(snap); renderRoster(snap);
     if (selectedId && $('#drawer').classList.contains('open')) { const m = selectedId === '__lead' ? leadAsMember(snap) : snap.members.find(x => x.id === selectedId); if (m) { $('#d-avatar').innerHTML = miniPet(m, 60); renderDrawerBody(m); } }
     prev = snap; firstLoad = false;
   } catch (e) { console.error(e); if (++failing > 2) $('#live').classList.add('off'); }
 }
+const stallBadge = $('#stall-badge');
+if (stallBadge) stallBadge.addEventListener('click', () => {
+  if ($('#stall-panel').hidden) {
+    stallForceOpen = true;
+    try { sessionStorage.removeItem('dsh-agent-team-stall-collapsed'); } catch (e) {}
+  } else stallCollapse();
+  if (prev) renderStallAlerts(prev, false);
+});
+const stallCollapseBtn = $('#stall-collapse');
+if (stallCollapseBtn) stallCollapseBtn.addEventListener('click', () => { stallCollapse(); if (prev) renderStallAlerts(prev, false); });
+const stallQuietBox = $('#stall-quiet');
+if (stallQuietBox) stallQuietBox.addEventListener('change', () => {
+  try { localStorage.setItem('dsh-agent-team-stall-quiet', stallQuietBox.checked ? '1' : '0'); } catch (e) {}
+  if (prev) renderStallAlerts(prev, false);
+});
+const stallMinutes = $('#stall-minutes');
+if (stallMinutes) stallMinutes.addEventListener('change', () => {
+  const n = Number(stallMinutes.value);
+  if (!isFinite(n) || n < 1 || n > 1440) {
+    if (prev) stallMinutes.value = String(Math.round(stallThresholdSec(prev) / 60));
+    return;
+  }
+  try { localStorage.setItem('dsh-agent-team-stall-min', String(Math.round(n))); } catch (e) {}
+  stallListSig = null;
+  if (prev) renderStallAlerts(prev, false);
+});
+const stallNotify = $('#stall-notify');
+if (stallNotify) stallNotify.addEventListener('click', async () => {
+  if (stallNotifyOn()) {
+    try { localStorage.setItem('dsh-agent-team-stall-notify', '0'); } catch (e) {}
+    renderStallNotifyButton();
+    return;
+  }
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'denied') return;
+  let perm = Notification.permission;
+  if (perm !== 'granted') {
+    try { perm = await Notification.requestPermission(); } catch (e) { perm = 'denied'; }
+  }
+  if (perm !== 'granted') return;
+  try { localStorage.setItem('dsh-agent-team-stall-notify', '1'); } catch (e) {}
+  if (prev) renderStallAlerts(prev, false);
+});
+const stallList = $('#stall-list');
+if (stallList) stallList.addEventListener('click', (e) => {
+  const dismiss = e.target.closest('[data-stall-dismiss]');
+  if (dismiss) { stallDismiss(Number(dismiss.dataset.stallDismiss)); return; }
+  const open = e.target.closest('[data-stall-open]');
+  if (!open || !prev) return;
+  const item = stallShown[Number(open.dataset.stallOpen)];
+  if (!item || !item.id) return;
+  const escaped = window.CSS && CSS.escape ? CSS.escape(item.id) : item.id.replace(/"/g, '');
+  const el = document.querySelector('.person[data-id="' + escaped + '"]');
+  if (el && el.scrollIntoView) {
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+  }
+  openDrawer(item.id);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  const agentModal = $('#agent-modal'), deptModal = $('#dept-modal');
+  if ((agentModal && !agentModal.hidden) || (deptModal && !deptModal.hidden)) return;
+  const panel = $('#stall-panel');
+  if (!panel || panel.hidden) return;
+  stallCollapse();
+  e.preventDefault();
+});
 tick(); setInterval(tick, 1500);
 /* 文档截图辅助：?shot=stats|lower|member|dept 只显示对应区域 / 打开对应弹窗（对普通使用无影响） */
 (function shotMode() {
@@ -1126,8 +1466,8 @@ tick(); setInterval(tick, 1500);
   const shot = qp.get('shot'); if (!shot) return;
   const hide = (sel) => document.querySelectorAll(sel).forEach(e => e.style.display = 'none');
   setTimeout(async () => {
-    if (shot === 'stats') { hide('header, .mission, .stage, .lower'); }
-    if (shot === 'lower') { hide('header, .mission, .stage, .statsrow'); }
+    if (shot === 'stats') { hide('header, .mission, .stall-panel, .stage, .lower'); }
+    if (shot === 'lower') { hide('header, .mission, .stall-panel, .stage, .statsrow'); }
     if (shot === 'member') { await openAgentModal(null); const f = $('#agent-form'); f.name.value = 'security-reviewer'; f.display.value = '小审'; f.role.value = '安全审查员'; f.dept.value = 'qa'; f.provider.value = 'deepseek-official'; f.model.value = 'deepseek-v4-pro'; f.effort.value = 'high'; f.color.value = 'purple'; f.description.value = '小审·安全审查员（质量部）。改动涉及登录、权限、支付、外部输入解析时主动使用：审查注入、越权、密钥泄露。'; f.skills.value = 'security-review'; f.body.value = '你是质量部的安全审查员「小审」。开工先读 .team/SPEC.md 与自己的工单；逐条给出 文件:行号 → 问题 → 后果 → 改法；完成后写交接单，汇报 ≤ 200 字。'; updatePreview(); }
     if (shot === 'dept') { await openDeptModal(); }
   }, 2500);

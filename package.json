@@ -1,6 +1,6 @@
 {
   "name": "dsh-agent-team",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DeepSeek Harness 插件：部门制 Agent Team + 可视化指挥室看板（每个子代理一只动画桌宠、部门分组、派工/回报/交接连线、token 与成本、成员/部门/形象管理）",
   "keywords": [
     "dsh",
@@ -30,7 +30,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/plugin.test.js",
+    "test": "node --test test/plugin.test.js test/stall.test.js",
     "smoke": "node scripts/smoke.mjs"
   },
   "repository": {
