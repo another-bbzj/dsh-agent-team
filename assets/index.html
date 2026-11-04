@@ -340,6 +340,7 @@
   <span class="spacer"></span>
   <span class="pill mono" id="session-pill">—</span>
   <select id="session-select" title="选择要观察的会话"></select>
+  <button class="pill" id="btn-battle-card" type="button" title="用当前快照在本机生成 SVG 战报卡并下载。不上传。不含路径、会话号、邮箱、提示词和工具参数">导出战报卡</button>
   <span class="theme" id="theme" title="主题"><button data-t="auto">自动</button><button data-t="light">☀ 浅色</button><button data-t="dark">☾ 深色</button></span>
 </header>
 <div class="mission" id="mission"><b><span class="live-dot"></span>LIVE</b><span id="mission-text">实时监听 Agent Team 工作</span><span class="sub" id="mission-sub"></span></div>
@@ -1106,6 +1107,32 @@ document.addEventListener('pointerdown', (e) => {
 });
 $('#d-close').addEventListener('click', () => { selectedId = null; $('#drawer').classList.remove('open'); if (prev) layout(prev); });
 $('#session-select').addEventListener('change', (e) => { selectedSession = e.target.value; prev = null; firstLoad = true; seenComms.clear(); seenFeed.clear(); for (const el of personEls.values()) { el._sprite.destroy(); el.remove(); } personEls.clear(); for (const el of deptEls.values()) el.remove(); deptEls.clear(); for (const el of taskEls.values()) el.remove(); taskEls.clear(); tick(); });
+
+$('#btn-battle-card').addEventListener('click', async () => {
+  const btn = $('#btn-battle-card');
+  if (!prev) { btn.title = '还没有快照，稍等看板刷新'; return; }
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '生成中…';
+  try {
+    const mod = await import('./battle-card.js');
+    const svg = mod.buildCard(prev, 'auto', false);
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'agent-team-battle-card.svg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch (err) {
+    btn.title = '这份快照画不出战报卡';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+});
 
 let failing = 0;
 async function tick() {

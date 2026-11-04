@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
+import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { tmpHome, FakeCtx, fakeSession, feed, assistant, toolCall, toolResult, usage } from './helpers.js'
 
 const home = tmpHome()
@@ -201,6 +203,35 @@ test('看板：路由、页面、快照、成员 / 部门 / 形象 API、启动�
     r = await get('/snapshot.json'); assert.equal(r.status, 200)
     const snap = JSON.parse(r.body)
     assert.ok(Array.isArray(snap.roster) && snap.roster.length >= 8); assert.ok(snap.pets.includes('pip')); assert.equal(snap.harness, 'dsh')
+    r = await get('/'); assert.match(r.body, /id="btn-battle-card"/); assert.match(r.body, /导出战报卡/); assert.match(r.body, /import\('\.\/battle-card\.js'\)/); assert.match(r.body, /buildCard\(prev, 'auto', false\)/)
+    r = await get('/battle-card.js'); assert.equal(r.status, 200); assert.match(r.type, /javascript/)
+    assert.equal(r.body, fs.readFileSync(new URL('../lib/battle_card.js', import.meta.url), 'utf8'))
+    const { buildCard } = await import('../lib/battle_card.js')
+    const cardPath = path.join(home, 'battle.svg')
+    const cli = fileURLToPath(new URL('../tools/battle_card.js', import.meta.url))
+    const runCli = (args) => new Promise((resolve) => {
+      const child = spawn(process.execPath, [cli, ...args])
+      let stdout = '', stderr = ''
+      child.stdout.on('data', (chunk) => { stdout += chunk })
+      child.stderr.on('data', (chunk) => { stderr += chunk })
+      child.on('close', (status) => resolve({ status, stdout, stderr }))
+    })
+    const run = await runCli(['--port', String(server.address().port), '--output', cardPath])
+    assert.equal(run.status, 0, run.stderr)
+    const svg = fs.readFileSync(cardPath, 'utf8')
+    assert.equal(svg, buildCard(snap, 'auto', false), 'CLI 和看板共用的 buildCard 必须是同一张 SVG')
+    const absent = (value) => { if (typeof value === 'string' && value.length >= 8) assert.equal(svg.includes(value), false, value) }
+    absent(snap.session && snap.session.id); absent(snap.session && snap.session.project); absent(snap.lead && snap.lead.lastUserPrompt); absent(snap.lead && snap.lead.model); absent(snap.lead && snap.lead.provider)
+    for (const member of snap.members || []) {
+      absent(member.id); absent(member.prompt); absent(member.model)
+      for (const w of member.writes || []) absent(w.path)
+      for (const item of member.timeline || []) absent(item.label)
+    }
+    if ((snap.members || []).some(m => String(m.description || '').includes('实现数据层'))) assert.match(svg, /实现数据层/)
+    const miss = await runCli(['--port', String(server.address().port), '--session', 'no-such-session-prefix'])
+    assert.equal(miss.status, 1)
+    assert.match(miss.stderr, /没有匹配的会话/)
+    assert.doesNotMatch(miss.stderr, /no-such-session-prefix/)
     r = await get('/sprites/pip.webp'); assert.equal(r.status, 200); assert.match(r.type, /image\/webp/)
     r = await get('/sprites/../package.json'); assert.notEqual(r.status, 200)
     r = await get('/api/agents'); assert.equal(r.status, 200); assert.equal(JSON.parse(r.body).toolName, 'dispatch_member')
