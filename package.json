@@ -22,6 +22,7 @@
   "files": [
     "lib",
     "assets",
+    "tools",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
@@ -30,7 +31,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/plugin.test.js",
+    "test": "node --test test/plugin.test.js test/battle_card.test.js",
     "smoke": "node scripts/smoke.mjs"
   },
   "repository": {

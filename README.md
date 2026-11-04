@@ -152,7 +152,7 @@ dept: dev
 
 | 区域 | 内容 |
 |---|---|
-| 顶栏 | 阶段（组队 / 协调 / 等待 / 收尾）、进行中 / 已完成、模型分布、成员成本 / 全队合计、tokens 与缓存命中率、会话选择（自动 = 最近活跃）、主题 |
+| 顶栏 | 阶段（组队 / 协调 / 等待 / 收尾）、进行中 / 已完成、模型分布、成员成本 / 全队合计、tokens 与缓存命中率、会话选择（自动 = 最近活跃）、主题、**导出战报卡** |
 | 舞台 | 队长在上、部门在下；成员桌宠按状态播放不同动画（思考 / 跑动 / 挥手交付 / 失败 / 等待）；派工、回报、转达、交接、私信、停滞、出错各有颜色的连线 |
 | 任务卡片 | 每位成员一张：状态、任务标题、当前工具、用时、tokens、成本 |
 | 部门汇总 | 人数 / 进度 / 工具次数 / tokens / 缓存 / 用时 / 模型 / 成本，含队长与全队合计，对比条 |
@@ -160,6 +160,23 @@ dept: dev
 | 详情抽屉 | 点任何一位：形象（当场换 / 只改这位 / 改这个角色 / 导入）、任务指令、概况、写过的文件、通信、交付回报、动作时间线 |
 | 常驻成员 | 全部成员定义；新建 / 编辑 / 删除；部门管理 |
 | 回放 | 把本次会话的通信按时间重放一遍 |
+| 战报卡 | 顶栏「导出战报卡」用当前快照在浏览器里生成 SVG 并下载，和下面的 CLI 是同一张图。只画队长、部门、成员、任务标题、用量和估算成本。快照里有 `stallAlerts` 才写停滞人数（含 0）；没有这个字段就不画。不写本机路径、会话 id、邮箱、提示词、工具参数。任务标题里夹了这些，或长过 72 个字，整段省略，不截断 |
+
+离线或从本机端口再导一张：
+
+```bash
+node tools/battle_card.js --input snapshot.json --output battle.svg
+node tools/battle_card.js --port 7790 --output battle.svg
+node tools/battle_card.js --port 7790 --session <会话 id 前缀> --theme dark --static
+```
+
+`--port` 只连 `127.0.0.1`。独立看板默认 7790；DSH Web 的 3080 需要登录时，用 7790。样例：
+
+![战报卡样例：成员、估算成本和任务标题，停滞提醒来自快照里的 stallAlerts](docs/img/battle-card.svg)
+
+顶栏按钮在会话选择旁边。下面这张是无头浏览器打开真实看板时的样子：
+
+![指挥室顶栏的导出战报卡](docs/img/06-battle-export.png)
 
 ## 形象（桌宠）
 
@@ -228,7 +245,7 @@ sprites/         你导入的形象
 ## 自检与测试
 
 ```bash
-npm test                      # node --test：状态折叠、定价、派工工具、退化重试、看板 API、headless 组合
+npm test                      # node --test：状态折叠、定价、派工工具、退化重试、看板 API、战报卡、headless 组合
 node scripts/demo.mjs         # 本地演示看板
 node scripts/mock-llm.mjs     # 脚本化的 OpenAI 兼容 mock 模型（零成本端到端）
 ```
@@ -243,7 +260,9 @@ lib/board.js        看板 HTTP 路由 / 管理 API / 启动按钮注入 / 独�
 lib/client.js       浏览器半边：DSH 设置页里的「Agent Team」卡片（lazy-CJS factory，手写，无需构建）
 lib/store.js        session/event → 每个会话的画像（队长 / 成员）
 lib/snapshot.js     画像 → snapshot.json（部门、通信、汇总、排行）
+lib/battle_card.js  快照 → 纯 SVG 战报卡（看板按钮与 CLI 共用这一份）
 lib/team.js         team.json、成员文件、部门、形象、价格
+tools/battle_card.js  离线文件或本机端口导出战报卡
 assets/index.html   看板前端（单文件，与 claude-agent-team 共用）
 assets/members/     8 位默认成员 · assets/sprites/ 13 只自带形象 · assets/team.json 默认配置与价格表
 scripts/            demo.mjs（本地演示）· mock-llm.mjs（零成本端到端）
@@ -259,6 +278,7 @@ test/               node --test
 | 模型 | Claude 家族 | 任意路由：DeepSeek 官方、OpenAI 兼容中转、自建适配器 |
 | 服务 | 独立 Python 进程 :7788 | 挂在 DSH 自己的 Web 服务上，随 `dsh web` 启停 |
 | 安装 | `python install.py` | `dsh plugin add`（bundle 协议） |
+| 战报卡 | `tools/battle_card.py` | `tools/battle_card.js`；顶栏按钮调用同一份 `lib/battle_card.js`。不画 dsh 快照里没有的官方任务、预算和作战区 |
 
 ## 致谢
 
